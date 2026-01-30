@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AccessNowMTL.Api.Data;
 using AccessNowMTL.Api.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AccessNowMTL.Api.Controllers
 {
@@ -7,17 +8,59 @@ namespace AccessNowMTL.Api.Controllers
     [Route("api/[controller]")]
     public class ServicesController : ControllerBase
     {
+        // GET: /api/Services
         [HttpGet]
-        public IActionResult Get()
+        public ActionResult<List<Service>> GetAll()
         {
-            var services = new[]
-            {
-                new Service { Id = 1, Name = "CLSC", Category = "Health" },
-                new Service { Id = 2, Name = "Housing Help", Category = "Housing" },
-                new Service { Id = 3, Name = "Immigration Help", Category = "Immigration" }
-            };
+            return Ok(ServiceRepository.GetAll());
+        }
 
-            return Ok(services);
+        // GET: /api/Services/{id}
+        [HttpGet("{id}")]
+        public ActionResult<Service> GetById(int id)
+        {
+            var service = ServiceRepository.GetById(id);
+            if (service == null) return NotFound();
+
+            return Ok(service);
+        }
+
+        // GET: /api/Services/search?category=...&borough=...
+        [HttpGet("search")]
+        public ActionResult<List<Service>> Search(
+            [FromQuery] string? category,
+            [FromQuery] string? borough)
+        {
+            var results = ServiceRepository.Search(category, borough);
+            return Ok(results);
+        }
+
+        // POST: /api/Services
+        [HttpPost]
+        public ActionResult<Service> Create([FromBody] Service service)
+        {
+            var created = ServiceRepository.Add(service);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        }
+
+        // PUT: /api/Services/{id}
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, [FromBody] Service service)
+        {
+            bool ok = ServiceRepository.Update(id, service);
+            if (!ok) return NotFound();
+
+            return NoContent();
+        }
+
+        // DELETE: /api/Services/{id}
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            bool ok = ServiceRepository.Delete(id);
+            if (!ok) return NotFound();
+
+            return NoContent();
         }
     }
 }

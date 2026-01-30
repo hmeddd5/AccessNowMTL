@@ -1,11 +1,246 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AccessNow MTL</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f7f7f7;
+      color: #111;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+      font-size: 42px;
+    }
+
+    .subtitle {
+      margin-top: 0;
+      color: #444;
+    }
+
+    .toolbar {
+      margin: 25px 0 20px 0;
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input {
+      padding: 12px 14px;
+      font-size: 16px;
+      width: 280px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      outline: none;
+      background: #fff;
+    }
+
+    input:focus {
+      border-color: #999;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      background: #111;
+      color: #fff;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .error {
+      padding: 14px;
+      background: #ffd7d7;
+      border: 1px solid #ffb2b2;
+      color: #7a0000;
+      border-radius: 10px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .services {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      border: 1px solid #eee;
+    }
+
+    .name {
+      font-size: 26px;
+      font-weight: 800;
+      margin: 0 0 10px 0;
+    }
+
+    .category {
+      color: #0b63ce;
+      font-weight: 700;
+      margin: 0 0 14px 0;
+      font-size: 18px;
+    }
+
+    .row {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+
+    .row strong {
+      display: inline-block;
+      width: 150px;
+    }
+
+    .link {
+      display: inline-block;
+      margin-top: 10px;
+      color: #0b63ce;
+      text-decoration: underline;
+    }
+
+    .small {
+      color: #666;
+      margin-top: 6px;
+      font-size: 14px;
+    }
+  </style>
 </head>
+
 <body>
   <h1>AccessNow MTL</h1>
-  <p>This academic project is currently under development.</p>
+  <p class="subtitle">Services essentiels disponibles à Montréal</p>
+
+  <div class="toolbar">
+    <input id="category" type="text" placeholder="Catégorie (ex: Santé)" />
+    <input id="borough" type="text" placeholder="Arrondissement (ex: Montréal)" />
+
+    <button id="btnSearch">Rechercher</button>
+    <button id="btnAll">Tout afficher</button>
+  </div>
+
+  <div id="errorBox" class="error"></div>
+
+  <div id="services" class="services"></div>
+
+  <script>
+    // ✅ Mets ici le port EXACT de ton Swagger
+    // Exemple : https://localhost:7274
+    const API_BASE = "https://localhost:7274";
+
+    const servicesContainer = document.getElementById("services");
+    const errorBox = document.getElementById("errorBox");
+    const categoryInput = document.getElementById("category");
+    const boroughInput = document.getElementById("borough");
+    const btnSearch = document.getElementById("btnSearch");
+    const btnAll = document.getElementById("btnAll");
+
+    function showError(message) {
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+    }
+
+    function hideError() {
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
+    function clearServices() {
+      servicesContainer.innerHTML = "";
+    }
+
+    function renderServices(data) {
+      clearServices();
+
+      if (!data || data.length === 0) {
+        showError("Aucun service trouvé.");
+        return;
+      }
+
+      data.forEach(service => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const isFreeText = service.isFree ? "Oui" : "Non";
+
+        card.innerHTML = `
+          <h3 class="name">${service.name ?? ""}</h3>
+          <p class="category">${service.category ?? ""}</p>
+
+          <div class="row"><strong>Arrondissement :</strong> ${service.borough ?? ""}</div>
+          <div class="row"><strong>Adresse :</strong> ${service.address ?? ""}</div>
+          <div class="row"><strong>Téléphone :</strong> ${service.phone ?? ""}</div>
+          <div class="row"><strong>Gratuit :</strong> ${isFreeText}</div>
+
+          ${service.website ? `<a class="link" href="${service.website}" target="_blank">Site web</a>` : `<div class="small">Aucun site web</div>`}
+        `;
+
+        servicesContainer.appendChild(card);
+      });
+    }
+
+    async function loadAll() {
+      hideError();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/Services`);
+        if (!res.ok) throw new Error("Réponse API non valide");
+
+        const data = await res.json();
+        renderServices(data);
+      } catch (err) {
+        showError("Erreur API : " + err);
+        console.error(err);
+      }
+    }
+
+    async function search() {
+      hideError();
+
+      const category = categoryInput.value.trim();
+      const borough = boroughInput.value.trim();
+
+      // URL propre : /api/Services/search?category=...&borough=...
+      let url = `${API_BASE}/api/Services/search?`;
+      const params = [];
+
+      if (category) params.push(`category=${encodeURIComponent(category)}`);
+      if (borough) params.push(`borough=${encodeURIComponent(borough)}`);
+
+      url += params.join("&");
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Réponse API non valide");
+
+        const data = await res.json();
+        renderServices(data);
+      } catch (err) {
+        showError("Erreur API : " + err);
+        console.error(err);
+      }
+    }
+
+    btnAll.addEventListener("click", loadAll);
+    btnSearch.addEventListener("click", search);
+
+    // ✅ charge automatiquement au démarrage
+    loadAll();
+  </script>
 </body>
 </html>
